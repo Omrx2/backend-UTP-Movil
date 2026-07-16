@@ -4,7 +4,7 @@
 // Cuando la BD esté lista, este archivo se deja de usar —
 // solo cambian las implementaciones en services/chatService.js.
 // =============================================================
-
+//ver
 const contactos = [
   { id: 1, nombre: "TzNakroth",    estado: "En línea", tipo: "amigo", avatar: null },
   { id: 2, nombre: "CodeMaster",   estado: "En línea", tipo: "amigo", avatar: null },
