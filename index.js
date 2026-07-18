@@ -8,7 +8,6 @@
 require("dotenv").config();
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -35,13 +34,32 @@ const pool = new Pool({
 });
 
 // ── Envío de correos (verificación de correo institucional) ──────
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// Se usa la API de Brevo (HTTPS) en vez de SMTP de Gmail, porque Railway
+// bloquea las conexiones SMTP salientes en su plan gratuito. La API de
+// Brevo funciona por HTTPS normal, así que no tiene ese problema.
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+
+async function enviarCorreoOTP(correoDestino, codigo) {
+  const response = await fetch(BREVO_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": process.env.BREVO_API_KEY,
+    },
+    body: JSON.stringify({
+      sender: { name: "UTP+ Movil", email: process.env.EMAIL_USER },
+      to: [{ email: correoDestino }],
+      subject: "Tu código de verificación - UTP+ Movil",
+      textContent: `Tu código de verificación es: ${codigo}\n\nExpira en 5 minutos. Si tú no solicitaste esto, ignora este correo.`,
+    }),
+  });
+
+  if (!response.ok) {
+    const detalle = await response.text();
+    throw new Error(`Brevo respondió ${response.status}: ${detalle}`);
+  }
+}
 
 // Correo institucional: u + 8 dígitos + @utp.edu.pe (mayúsculas o minúsculas)
 const FORMATO_CORREO_UTP = /^u\d{8}@utp\.edu\.pe$/i;
@@ -84,12 +102,7 @@ app.post("/api/auth/enviar-codigo", async (req, res) => {
   otpStore.set(correo, { codigo, expira });
 
   try {
-    await transporter.sendMail({
-      from: `"UTP+ Movil" <${process.env.EMAIL_USER}>`,
-      to: correo,
-      subject: "Tu código de verificación - UTP+ Movil",
-      text: `Tu código de verificación es: ${codigo}\n\nExpira en 5 minutos. Si tú no solicitaste esto, ignora este correo.`,
-    });
+    await enviarCorreoOTP(correo, codigo);
     res.json({ success: true });
   } catch (err) {
     console.error("Error enviando correo:", err.message);
