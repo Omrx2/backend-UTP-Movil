@@ -391,8 +391,14 @@ app.put("/api/perfil/:id", async (req, res) => {
       );
     }
 
+    // Los intereses llegan como array desde EditarPerfil.jsx; los pasamos
+    // a texto plano antes de guardar (si se guarda el array tal cual, se
+    // corrompe un poco más cada vez que se vuelve a editar).
+    const interesesTexto = Array.isArray(intereses) ? intereses.join(", ") : intereses;
+
     // Actualizar campos de perfil_usuario (upsert)
     await client.query(
+      
       `
       INSERT INTO perfil_usuario (codigo_usu, bio, carrera, ciclo, genero, intereses, estado_actual, privado, foto_perfil)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -412,7 +418,7 @@ app.put("/api/perfil/:id", async (req, res) => {
         carrera !== undefined ? carrera : null,
         ciclo !== undefined ? ciclo : null,
         genero !== undefined ? genero : null,
-        intereses !== undefined ? intereses : null,
+        interesesTexto !== undefined ? interesesTexto : null,
         estado_actual !== undefined ? estado_actual : null,
         privado !== undefined ? privado : null,
         foto_perfil !== undefined ? foto_perfil : null,
